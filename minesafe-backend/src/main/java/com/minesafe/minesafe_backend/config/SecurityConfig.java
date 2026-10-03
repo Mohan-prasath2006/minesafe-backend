@@ -141,9 +141,13 @@ public class SecurityConfig {
                 new CorsConfiguration();
 
         // React Vite frontend
-        configuration.setAllowedOrigins(
+        configuration.setAllowedOriginPatterns(
                 List.of(
-                        "http://localhost:5173"
+                        "http://localhost:5173",
+                        "https://*.trycloudflare.com",
+                        "https://localhost",
+                        "capacitor://localhost",
+                        "http://localhost"
                 )
         );
 
