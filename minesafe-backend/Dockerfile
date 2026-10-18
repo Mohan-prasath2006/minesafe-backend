@@ -14,4 +14,4 @@ RUN ./mvnw clean package -DskipTests
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar target/*.jar"]
+CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar $(find target -maxdepth 1 -name '*.jar' ! -name '*.original' | head -n 1)"]
