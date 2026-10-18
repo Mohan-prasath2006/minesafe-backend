@@ -13,11 +13,14 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    // =========================
+    // =====================================================
     // EMAIL VERIFICATION OTP
-    // =========================
+    // =====================================================
 
-    public void sendVerificationOtp(String email, String name, String otp) {
+    public void sendVerificationOtp(
+            String email,
+            String name,
+            String otp) {
 
         SimpleMailMessage message = new SimpleMailMessage();
 
@@ -39,11 +42,13 @@ public class EmailService {
         mailSender.send(message);
     }
 
-    // =========================
+    // =====================================================
     // LOGIN EMAIL
-    // =========================
+    // =====================================================
 
-    public void sendLoginEmail(String email, String name) {
+    public void sendLoginEmail(
+            String email,
+            String name) {
 
         SimpleMailMessage message = new SimpleMailMessage();
 
@@ -62,9 +67,9 @@ public class EmailService {
         mailSender.send(message);
     }
 
-    // =========================
+    // =====================================================
     // PASSWORD RESET OTP
-    // =========================
+    // =====================================================
 
     public void sendPasswordResetOtp(
             String email,
