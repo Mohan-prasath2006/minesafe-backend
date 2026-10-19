@@ -36,78 +36,25 @@ public class UserController {
         this.emailService = emailService;
     }
 
-    // =====================================================
-    // REGISTER
-    // =====================================================
+    // REGISTER - NO EMAIL VERIFICATION
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
 
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body("Email already registered");
+        if (user.getEmail() == null || user.getEmail().isBlank()
+                || user.getPassword() == null || user.getPassword().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body("Email and password are required");
         }
 
-        String otp = String.format(
-                "%06d",
-                new Random().nextInt(1000000)
-        );
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest()
+                    .body("Email already registered");
+        }
 
         user.setPassword(
                 passwordEncoder.encode(user.getPassword())
         );
-
-        user.setVerificationOtp(otp);
-        user.setEmailVerified(false);
-
-        User savedUser = userRepository.save(user);
-
-        emailService.sendVerificationOtp(
-                savedUser.getEmail(),
-                savedUser.getName(),
-                otp
-        );
-
-        return ResponseEntity.ok(
-                "Account created. Verification OTP sent to your email."
-        );
-    }
-
-    // =====================================================
-    // VERIFY EMAIL
-    // =====================================================
-
-    @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(
-            @RequestParam String email,
-            @RequestParam String otp) {
-
-        User user = userRepository
-                .findByEmail(email)
-                .orElse(null);
-
-        if (user == null) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body("User not found");
-        }
-
-        if (user.isEmailVerified()) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body("Email already verified");
-        }
-
-        if (!otp.equals(user.getVerificationOtp())) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body("Invalid OTP");
-        }
 
         user.setEmailVerified(true);
         user.setVerificationOtp(null);
@@ -115,13 +62,11 @@ public class UserController {
         userRepository.save(user);
 
         return ResponseEntity.ok(
-                "Email verified successfully"
+                "Account created successfully. You can now login."
         );
     }
 
-    // =====================================================
-    // LOGIN
-    // =====================================================
+    // LOGIN - NO EMAIL VERIFICATION OR LOGIN EMAIL
 
     @PostMapping("/login")
     public ResponseEntity<?> login(
@@ -132,35 +77,20 @@ public class UserController {
                 .orElse(null);
 
         if (user == null) {
-
-            return ResponseEntity
-                    .status(401)
+            return ResponseEntity.status(401)
                     .body("Invalid email or password");
-        }
-
-        if (!user.isEmailVerified()) {
-
-            return ResponseEntity
-                    .status(403)
-                    .body("Please verify your email before login");
         }
 
         if (!passwordEncoder.matches(
                 request.getPassword(),
                 user.getPassword())) {
 
-            return ResponseEntity
-                    .status(401)
+            return ResponseEntity.status(401)
                     .body("Invalid email or password");
         }
 
         String token = jwtService.generateToken(
                 user.getEmail()
-        );
-
-        emailService.sendLoginEmail(
-                user.getEmail(),
-                user.getName()
         );
 
         return ResponseEntity.ok(
@@ -173,9 +103,7 @@ public class UserController {
         );
     }
 
-    // =====================================================
     // PROFILE - JWT PROTECTED
-    // =====================================================
 
     @GetMapping("/profile")
     public ResponseEntity<?> profile(
@@ -191,9 +119,7 @@ public class UserController {
         );
     }
 
-    // =====================================================
-    // FORGOT PASSWORD
-    // =====================================================
+    // FORGOT PASSWORD - EMAIL OTP RETAINED
 
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(
@@ -204,36 +130,23 @@ public class UserController {
                 .orElse(null);
 
         if (user == null) {
-
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("No account found with this email");
         }
 
-        if (!user.isEmailVerified()) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body("Please verify your email first");
-        }
-
-        // Generate 6 digit reset OTP
         String resetOtp = String.format(
                 "%06d",
                 new Random().nextInt(1000000)
         );
 
-        // OTP valid for 5 minutes
-        long expiryTime =
-                System.currentTimeMillis()
-                        + (5 * 60 * 1000);
+        long expiryTime = System.currentTimeMillis()
+                + (5 * 60 * 1000);
 
         user.setResetOtp(resetOtp);
         user.setResetOtpExpiry(expiryTime);
 
         userRepository.save(user);
 
-        // Send reset OTP email
         emailService.sendPasswordResetOtp(
                 user.getEmail(),
                 user.getName(),
@@ -245,9 +158,7 @@ public class UserController {
         );
     }
 
-    // =====================================================
-    // VERIFY RESET OTP
-    // =====================================================
+    // VERIFY PASSWORD RESET OTP
 
     @PostMapping("/verify-reset-otp")
     public ResponseEntity<?> verifyResetOtp(
@@ -259,37 +170,29 @@ public class UserController {
                 .orElse(null);
 
         if (user == null) {
-
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("User not found");
         }
 
         if (user.getResetOtp() == null) {
-
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("No password reset request found");
         }
 
-        if (user.getResetOtpExpiry() == null ||
-                System.currentTimeMillis()
-                        > user.getResetOtpExpiry()) {
+        if (user.getResetOtpExpiry() == null
+                || System.currentTimeMillis()
+                > user.getResetOtpExpiry()) {
 
             user.setResetOtp(null);
             user.setResetOtpExpiry(null);
-
             userRepository.save(user);
 
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("OTP expired. Please request a new OTP.");
         }
 
         if (!otp.equals(user.getResetOtp())) {
-
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("Invalid OTP");
         }
 
@@ -298,9 +201,7 @@ public class UserController {
         );
     }
 
-    // =====================================================
     // RESET PASSWORD
-    // =====================================================
 
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(
@@ -313,57 +214,41 @@ public class UserController {
                 .orElse(null);
 
         if (user == null) {
-
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("User not found");
         }
 
         if (user.getResetOtp() == null) {
-
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("No password reset request found");
         }
 
-        // Check OTP expiry
-        if (user.getResetOtpExpiry() == null ||
-                System.currentTimeMillis()
-                        > user.getResetOtpExpiry()) {
+        if (user.getResetOtpExpiry() == null
+                || System.currentTimeMillis()
+                > user.getResetOtpExpiry()) {
 
             user.setResetOtp(null);
             user.setResetOtpExpiry(null);
-
             userRepository.save(user);
 
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("OTP expired. Please request a new OTP.");
         }
 
-        // Check OTP
         if (!otp.equals(user.getResetOtp())) {
-
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body("Invalid OTP");
         }
 
-        // Validate new password
-        if (newPassword == null ||
-                newPassword.length() < 6) {
-
-            return ResponseEntity
-                    .badRequest()
+        if (newPassword == null || newPassword.length() < 6) {
+            return ResponseEntity.badRequest()
                     .body("Password must contain at least 6 characters");
         }
 
-        // Encrypt new password
         user.setPassword(
                 passwordEncoder.encode(newPassword)
         );
 
-        // Clear reset OTP
         user.setResetOtp(null);
         user.setResetOtpExpiry(null);
 
